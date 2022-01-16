@@ -2,7 +2,7 @@
 Terminal emulator for Lite XL based on [libtmt](https://github.com/deadpixi/libtmt) (more specifically [lua-tmt](https://github.com/max1220/lua-tmt)).
 
 ## Build instructions
-Place this repo in `~/.config/lite-xl/plugins`. Then run `make`.
+Place this repo in `~/.config/lite-xl/plugins`, and rename it to `tmt`. (The full path should look like `~/.config/lite-xl/plugins/tmt/init.lua`, for example.) Then run `make`.
 
 You may need to ensure Lite is compiled against the system Lua installation, and perhaps adjust the Lua version that lua-tmt is linked against.
 
