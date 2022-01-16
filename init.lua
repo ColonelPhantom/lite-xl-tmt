@@ -160,7 +160,6 @@ function TmtView:draw()
     local tw, th = self.tmt:get_size()
     if w ~= tw or h ~= th then
         self.tmt.set_size(self.tmt, w,h)
-        core.log("tmt resize: " .. w .. "x" .. h)
     end
 
     -- render screen
