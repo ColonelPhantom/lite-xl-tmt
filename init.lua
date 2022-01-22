@@ -138,7 +138,7 @@ function TmtView:get_screen_char_size()
         math.max(1, math.floor(y / font:get_height()))
 end
 
-local invisible = { "\r", "\n", "\v", "\t", "\f", " " }
+local invisible = { ["\r"] = true, ["\n"] = true, ["\v"] = true, ["\t"] = true, ["\f"] = true, [" "] = true }
 function TmtView:draw()
     self:draw_background(style.background)
     local font = style.code_font
