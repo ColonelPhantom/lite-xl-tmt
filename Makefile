@@ -1,18 +1,29 @@
-CFLAGS = -O2 -fPIC -Wall -Wextra -Wpedantic
+CFLAGS += -std=gnu99 -O2 -fPIC -Wall -Wextra -Wpedantic
 
 # change these if you use a different Lua version
-LUA_CFLAGS = -I/usr/include/lua5.2
+LUA_CFLAGS = $(CFLAGS) -I/usr/include/lua5.2
 LUA_LIBS = -llua5.2
 
+PTY_CFLAGS = $(CFLAGS)
+PTY_LIBS = -lutil
 
+SOEXT = so
+SONAME = tmt.$(SOEXT)
 
-all: tmt.so pty
+PTY_SRC = pty.c
 
-tmt.so: lua_tmt.c
-	$(CC) -shared -std=gnu99 -o tmt.so $(CFLAGS) $(LUA_CFLAGS) $(LUA_LIBS) -Wno-unused-variable lua_tmt.c tmt.h tmt.c
+all: $(SONAME) pty
 
-pty: pty.c
-	$(CC) pty.c -o pty $(CFLAGS) -lutil
+$(SONAME): lua_tmt.c tmt.c
+	$(CC) -shared -o $@ $(LUA_CFLAGS) $(LUA_LIBS) $^
+
+pty: $(PTY_SRC)
+	$(CC) -o $@ $(PTY_CFLAGS) $(PTY_LIBS) $<
+
+mingw:
+	$(MAKE) PTY_LIBS=-lwinpty SOEXT=dll PTY_SRC=pty.win.c
 
 clean:
-	rm tmt.so pty
+	rm -f $(SONAME) pty pty.exe
+
+.PHONY: clean mingw all
