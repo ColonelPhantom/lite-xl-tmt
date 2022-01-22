@@ -8,18 +8,19 @@ local style = require "core.style"
 local View = require "core.view"
 
 -- Import TMT; override CPATH to include DATADIR and USERDIR
-package.cpath = DATADIR .. '/?.so;' .. package.cpath
-package.cpath = USERDIR .. '/?.so;' .. package.cpath
-local libtmt = require "plugins.tmt.tmt"
+local soname = PLATFORM == "Windows" and "?.dll" or "?.so"
+local cpath = package.cpath
+package.cpath = DATADIR .. '/plugins/tmt/' .. soname .. ';' .. package.cpath
+package.cpath = USERDIR .. '/plugins/tmt/' .. soname .. ';' .. package.cpath
+local libtmt = require "tmt"
+package.cpath = cpath
 
 
-config.tmt = {
-  shell = os.getenv(PLATFORM == "Windows" and "COMSPEC" or "SHELL") or "/bin/sh",
-  shell_args = {},
-  split_direction = "down"
+config.plugins.tmt = {
+    shell = os.getenv(PLATFORM == "Windows" and "COMSPEC" or "SHELL") or "/bin/sh",
+    shell_args = {},
+    split_direction = "down"
 }
-
-local TmtView = View:extend()
 
 local ESC = "\x1b"
 
@@ -43,36 +44,26 @@ local COLORS = {
 
 }
 
-local function codepoint_to_utf8(c)
-    assert((55296 > c or c > 57343) and c < 1114112, "Bad Unicode code point: "..c..".")
-    if     c < 128 then
-        return                                                          string.char(c)
-    elseif c < 2048 then
-        return                                     string.char(192 + c/64, 128 + c%64)
-    elseif c < 55296 or 57343 < c and c < 65536 then
-        return                    string.char(224 + c/4096, 128 + c/64%64, 128 + c%64)
-    elseif c < 1114112 then
-        return string.char(240 + c/262144, 128 + c/4096%64, 128 + c/64%64, 128 + c%64)
-    end
-end
-
 local PASSTHROUGH_PATH = USERDIR .. "/plugins/tmt/pty"
 local TERMINATION_MSG = "\r\n\n[Process ended with status %d]"
+
+local TmtView = View:extend()
 
 function TmtView:new()
     TmtView.super.new(self)
     self.scrollable = false
 
-    local args = { PASSTHROUGH_PATH, config.tmt.shell }
-    for _, arg in ipairs(config.tmt.shell_args) do
-      table.insert(args, arg)
+    local args = { PASSTHROUGH_PATH, config.plugins.tmt.shell }
+    for _, arg in ipairs(config.plugins.tmt.shell_args) do
+        table.insert(args, arg)
     end
     self.proc = assert(process.start(args, {
-      stdin = process.REDIRECT_PIPE,
-      stdout = process.REDIRECT_PIPE,
+        stdin = process.REDIRECT_PIPE,
+        stdout = process.REDIRECT_PIPE
     }))
 
     self.tmt = libtmt.new(80,24)
+    self.screen = {}
 
     self.title = "Tmt"
     self.visible = true
@@ -80,6 +71,24 @@ function TmtView:new()
     self.scroll_region_end = self.rows
 
     self.alive = true
+
+    core.add_thread(function()
+        while self.alive do
+            local output = self.proc:read_stdout()
+            if not output then break end
+
+            local events = self.tmt:write(output)
+            core.redraw = events.screen
+            self.bell = events.bell
+            if events.answer then
+                self:input_string(events.answer)
+            end
+            coroutine.yield(1 / config.fps)
+        end
+
+        self.alive = false
+        self.tmt:write(string.format(TERMINATION_MSG, self.proc:returncode() or 0))
+    end, self)
 end
 
 function TmtView:try_close(...)
@@ -94,33 +103,12 @@ end
 function TmtView:update(...)
     TmtView.super.update(self, ...)
 
-    -- handle output
-    local output = ""
-    local currently_alive = self.proc:running()
-    if currently_alive then
-        output = assert(self.proc:read_stdout())
-    else
-        if currently_alive ~= self.alive then
-            self.alive = currently_alive
-            output = string.format(TERMINATION_MSG, self.proc:returncode())
-        end
+    local sw, sh = self:get_screen_char_size()
+    local tw, th = self.tmt:get_size()
+    if sw ~= tw or sh ~= th then
+        self.tmt:set_size(sw, sh)
     end
-
-    if output:len() > 0 then
-        core.redraw = true
-        local events = self.tmt:write(output)
-        for i,e in ipairs(events) do
-            print(type(i), type(e), tostring(i), tostring(e))
-            if e.type == "answer" then
-                self:input_string(e.answer)
-            elseif e.type == "bell" then
-                -- bell not handled yet
-                self.bell = true
-            end
-        end
-    end
-
-    -- update blink
+    -- update blink timer
     if self == core.active_view then
         local T, t0 = config.blink_period, core.blink_start
         local ta, tb = core.blink_timer, system.get_time()
@@ -129,7 +117,6 @@ function TmtView:update(...)
         end
         core.blink_timer = tb
     end
-
 end
 
 function TmtView:on_text_input(text)
@@ -138,71 +125,62 @@ end
 
 function TmtView:input_string(str)
     if not self.alive then
-        command.perform "root:close"
-        return
+        return command.perform "root:close"
     end
     self.proc:write(str)
 end
 
-function TmtView:get_char_size()
+function TmtView:get_screen_char_size()
     local font = style.code_font
-    local x = self.size.x - 2*style.padding.x
-    local y = self.size.y - 2*style.padding.y
-    return math.floor(x / font:get_width(" ")), math.floor(y / font:get_height())
+    local x = self.size.x - style.padding.x
+    local y = self.size.y - style.padding.y
+    return math.max(1, math.floor(x / font:get_width("a"))),
+        math.max(1, math.floor(y / font:get_height()))
 end
 
+local invisible = { "\r", "\n", "\v", "\t", "\f", " " }
 function TmtView:draw()
     self:draw_background(style.background)
     local font = style.code_font
 
-    -- resize tmt
-    local w,h = self:get_char_size()
-    local tw, th = self.tmt:get_size()
-    if w ~= tw or h ~= th then
-        self.tmt.set_size(self.tmt, w,h)
-    end
-
     -- render screen
-    local screen = self.tmt:get_screen()
+    local screen = self.tmt:get_screen(self.screen)
     local ox,oy = self:get_content_offset()
-    local fw, fh = font:get_width(" "), font:get_height()
-    for j = 1,screen.height do
-        local y = oy + style.padding.y + (fh * (j-1))
-        for i = 1,screen.width do
-            local x = ox + style.padding.x + fw * (i-1)
-            local char = screen.lines[j][i].char
-            local letter = codepoint_to_utf8(char)
-            local bg = screen.lines[j][i].bg
-            if bg ~= -1 then
-                renderer.draw_rect(x,y,fw,fh, COLORS[bg])
-            end
+    local fw, fh = font:get_width("A"), font:get_height()
 
-            local fg = screen.lines[j][i].fg
-            local fgc = COLORS[fg] or style.syntax.normal
-            renderer.draw_text(style.code_font, letter, x, y, fgc)
+    ox, oy = ox + style.padding.x, oy + style.padding.y
+
+    for i = 1, screen.width * screen.height do
+        local cy = math.floor(i / screen.width)
+        local cx = i % screen.width
+
+        local x, y = ox + cx * fw, oy + cy * fh
+        local cell = screen[i]
+        local char = cell.char
+        if cell.bg ~= -1 then
+            renderer.draw_rect(x, y, fw, fh, COLORS[cell.bg])
+        end
+
+        local fg = COLORS[cell.fg] or style.syntax.normal
+        if not invisible[char] then
+            renderer.draw_text(font, char, x, y, fg)
         end
     end
 
     -- render caret
-    if core.active_view == self then
-        core.blink_timer = system.get_time()
-        local T = config.blink_period
-        if system.window_has_focus() then
-            if config.disable_blink
+    core.blink_timer = system.get_time()
+    local T = config.blink_period
+    if system.window_has_focus() then
+        if config.disable_blink
             or (core.blink_timer - core.blink_start) % T < T / 2 then
-                local cx, cy = self.tmt:get_cursor()
-                renderer.draw_rect(ox + style.padding.x + fw*(cx-1) , oy+style.padding.y+fh*(cy-1), style.caret_width, fh, style.caret)
-            end
+            local cx, cy = self.tmt:get_cursor()
+            local x, y = ox + (cx - 1) * fw, oy + (cy - 1) * fh
+            renderer.draw_rect(x, y, style.caret_width, fh, style.caret)
         end
     end
-
 end
-
 
 -- override input handling
-local function predicate()
-    return getmetatable(core.active_view) == TmtView
-end
 
 local macos = PLATFORM == "Mac OS X"
 local modkeys_os = require("core.modkeys-" .. (macos and "macos" or "generic"))
@@ -210,11 +188,11 @@ local modkey_map = modkeys_os.map
 local modkeys = modkeys_os.keys
 
 local keymap_on_key_pressed = keymap.on_key_pressed
-function keymap.on_key_pressed(k)
-    if not predicate() then
-        return keymap_on_key_pressed(k)
+function keymap.on_key_pressed(k, ...)
+    if not core.active_view:is(TmtView) then
+        return keymap_on_key_pressed(k, ...)
     end
-    local term = core.active_view
+
     local mk = modkey_map[k]
     if mk then
         -- keymap_on_key_pressed(k)
@@ -250,11 +228,11 @@ end
 
 local keymap_on_key_released = keymap.on_key_released
 function keymap.on_key_released(k)
-  local mk = modkey_map[k]
-  if mk then
-    keymap_on_key_released(k)
-    keymap.modkeys[mk] = false
-  end
+    local mk = modkey_map[k]
+    if mk then
+        keymap_on_key_released(k)
+        keymap.modkeys[mk] = false
+    end
 end
 
 
@@ -270,7 +248,7 @@ command.add(nil, {
         if not shared_view_exists() then
             shared_view = TmtView()
         end
-        node:split(config.tmt.split_direction, shared_view)
+        node:split(config.plugins.tmt.split_direction, shared_view)
         core.set_active_view(shared_view)
     end,
     ["tmt:toggle"] = function()
