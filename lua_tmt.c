@@ -22,8 +22,6 @@
 
 typedef struct {
 	TMT *vt;
-	int w;
-	int h;
 	int update_lines;
 	int update_bell;
 	int update_answer;
@@ -112,20 +110,18 @@ void insert_char_table(lua_State *L, int x, TMTCHAR c) {
 
 static int l_get_screen(lua_State *L) {
 	tmt_t *tmt = luaL_checkudata(L, 1, API_TYPE_TMT);
+	const TMTSCREEN *s = tmt_screen(tmt->vt);
+
 	if (!lua_istable(L, 2))
-		lua_createtable(L, tmt->w * tmt->h, 2);
+		lua_createtable(L, s->nline * s->ncol, 2);
 
 	lua_settop(L, 2);
 
-	const TMTSCREEN *s = tmt_screen(tmt->vt);
-	tmt->w = s->ncol;
-	tmt->h = s->nline;
-
-	LUA_T_PUSH_S_I("width", tmt->w);
-	LUA_T_PUSH_S_I("height", tmt->h);
+	LUA_T_PUSH_S_I("width", s->ncol);
+	LUA_T_PUSH_S_I("height", s->nline);
 
 	// ensure enough objects for later
-	int l = tmt->w * tmt->h;
+	unsigned int l = s->nline * s->ncol;
 	if (lua_rawlen(L, -1) < l) {
 		for (int i = lua_rawlen(L, -1) + 1; i <= l; i++) {
 			lua_newtable(L);
@@ -162,8 +158,6 @@ static int l_set_size(lua_State *L) {
 	int w = lua_tointeger(L, 2);
 	int h = lua_tointeger(L, 3);
 
-	tmt->w = w;
-	tmt->h = h;
 	tmt_resize(tmt->vt, (size_t)h, (size_t)w);
 
 	return 0;
@@ -173,10 +167,10 @@ static int l_set_size(lua_State *L) {
 
 static int l_get_size(lua_State *L) {
 	tmt_t *tmt = luaL_checkudata(L, 1, API_TYPE_TMT);
+	const TMTSCREEN *s = tmt_screen(tmt->vt);
 
-	lua_pushinteger(L, tmt->w);
-	lua_pushinteger(L, tmt->h);
-
+	lua_pushinteger(L, s->ncol);
+	lua_pushinteger(L, s->nline);
 	return 2;
 }
 
@@ -237,9 +231,6 @@ static int l_new(lua_State *L) {
 		return luaL_error(L, "cannot create virtual terminal");
 
 	tmt->vt = vt;
-
-	tmt->w = w;
-	tmt->h = h;
 	tmt->update_lines = 0;
 	tmt->update_bell = 0;
 	tmt->update_answer = 0;
