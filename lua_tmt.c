@@ -1,13 +1,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <lua.h>
+#include <lauxlib.h>
 
 #ifdef __WIN32
 #include <windows.h>
 #endif
-
-#include <lua.h>
-#include <lauxlib.h>
 
 #include "tmt.h"
 
@@ -16,9 +15,10 @@
 #define LUA_T_PUSH_S_B(S, N) (lua_pushboolean(L, N), lua_setfield(L, -2, S))
 #define LUA_T_PUSH_S_S(K, V) (lua_pushstring(L, V), lua_setfield(L, -2, K))
 
-
+#define UTF8_SIZE 4
 #define ANS_SIZE 256
 #define API_TYPE_TMT "tmt"
+
 
 typedef struct {
 	TMT *vt;
@@ -82,7 +82,7 @@ void insert_char_table(lua_State *L, int x, TMTCHAR c) {
 	lua_rawgeti(L, -1, x+1);
 
 #ifdef __WIN32
-	char cp[4];
+	char cp[UTF8_SIZE];
 #else
 	char cp[MB_CUR_MAX];
 #endif
@@ -159,7 +159,6 @@ static int l_set_size(lua_State *L) {
 	int h = lua_tointeger(L, 3);
 
 	tmt_resize(tmt->vt, (size_t)h, (size_t)w);
-
 	return 0;
 }
 
@@ -244,7 +243,6 @@ static int l_new(lua_State *L) {
 		tmt_close(vt);
 		return luaL_error(L, "cannot create virtual terminal");
 	}
-
 	return 1;
 }
 
@@ -284,6 +282,5 @@ int luaopen_tmt(lua_State *L) {
 	lua_pushvalue(L, -1);
 	lua_setfield(L, -2, "__index");
 	luaL_setfuncs(L, lib, 0);
-
 	return 1;
 }
