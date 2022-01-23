@@ -151,8 +151,8 @@ function TmtView:draw()
     ox, oy = ox + style.padding.x, oy + style.padding.y
 
     for i = 1, screen.width * screen.height do
-        local cy = math.floor(i / screen.width)
-        local cx = i % screen.width
+        local cy = math.floor((i - 1) / screen.width)
+        local cx = (i - 1) % screen.width
 
         local x, y = ox + cx * fw, oy + cy * fh
         local cell = screen[i]
