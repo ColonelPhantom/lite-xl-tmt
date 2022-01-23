@@ -194,6 +194,8 @@ void append_answer(tmt_t *tmt, const char *a) {
 
 void input_callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
 	tmt_t *tmt = (tmt_t*)p;
+	if (tmt->vt == NULL || tmt->answer == NULL) return;
+
 	switch (m){
 		case TMT_MSG_BELL:
 			tmt->update_bell = 1;
