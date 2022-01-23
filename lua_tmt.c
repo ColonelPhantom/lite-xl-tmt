@@ -123,7 +123,7 @@ static int l_get_screen(lua_State *L) {
 	// ensure enough objects for later
 	unsigned int l = s->nline * s->ncol;
 	if (lua_rawlen(L, -1) < l) {
-		for (int i = lua_rawlen(L, -1) + 1; i <= l; i++) {
+		for (unsigned int i = lua_rawlen(L, -1) + 1; i <= l; i++) {
 			lua_newtable(L);
 			lua_rawseti(L, -2, i);
 		}
