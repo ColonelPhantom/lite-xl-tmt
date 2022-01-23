@@ -17,6 +17,7 @@
 #define LUA_T_PUSH_S_S(K, V) (lua_pushstring(L, V), lua_setfield(L, -2, K))
 
 
+#define ANS_SIZE 256
 #define API_TYPE_TMT "tmt"
 
 typedef struct {
@@ -28,6 +29,7 @@ typedef struct {
 	int update_answer;
 	int update_cursor;
 	char *answer;
+	size_t answer_len, answer_size;
 } tmt_t;
 
 
@@ -56,9 +58,9 @@ static int l_write(lua_State *L) {
 	LUA_T_PUSH_S_B("screen", tmt->update_lines);
 	LUA_T_PUSH_S_B("bell", tmt->update_bell);
 	if (tmt->update_answer) {
-		LUA_T_PUSH_S_S("answer", tmt->answer);
-		free(tmt->answer);
-		tmt->answer = NULL;
+		lua_pushlstring(L, tmt->answer, tmt->answer_len);
+		lua_setfield(L, -2, "answer");
+		tmt->answer_len = 0;
 	}
 
 	if (tmt->update_cursor) {
@@ -180,6 +182,22 @@ static int l_get_size(lua_State *L) {
 
 
 
+void append_answer(tmt_t *tmt, const char *a) {
+	size_t len = strlen(a) + 1; // counting \0 at the end
+	if (tmt->answer_len + len > tmt->answer_size) {
+		char *new = realloc(tmt->answer, (tmt->answer_size *= 2) * sizeof(char));
+		if (new == NULL) {
+			fprintf(stderr, __FILE__ ": cannot allocate memory for answer\n");
+			return;
+		}
+		tmt->answer = new;
+	}
+	memcpy(tmt->answer + tmt->answer_len, a, len);
+	tmt->answer_len += (len - 1);
+}
+
+
+
 void input_callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
 	tmt_t *tmt = (tmt_t*)p;
 	switch (m){
@@ -193,10 +211,8 @@ void input_callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
 		case TMT_MSG_ANSWER:
 			/* the terminal has a response to give to the program; a is a
 			 * pointer to a string */
-			if (tmt->answer != NULL)
-				free(tmt->answer);
-			tmt->answer = strdup((const char *)a);
 			tmt->update_answer = 1;
+			append_answer(tmt, (const char *)a);
 			break;
 		case TMT_MSG_MOVED:
 			/* the cursor moved; a is a pointer to the cursor's TMTPOINT */
@@ -228,7 +244,13 @@ static int l_new(lua_State *L) {
 	tmt->update_bell = 0;
 	tmt->update_answer = 0;
 	tmt->update_cursor = 0;
-	tmt->answer = NULL;
+	tmt->answer_len = 0;
+	tmt->answer_size = ANS_SIZE;
+	tmt->answer = malloc(tmt->answer_size * sizeof(char));
+	if (tmt->answer == NULL) {
+		tmt_close(vt);
+		return luaL_error(L, "cannot create virtual terminal");
+	}
 
 	return 1;
 }
