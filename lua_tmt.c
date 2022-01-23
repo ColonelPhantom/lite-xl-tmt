@@ -218,7 +218,7 @@ static int l_new(lua_State *L) {
 
 	TMT *vt = tmt_open((size_t)h, (size_t)w, input_callback, tmt, NULL); 
 	if (vt == NULL)
-		luaL_error(L, "cannot create virtual terminal");
+		return luaL_error(L, "cannot create virtual terminal");
 
 	tmt->vt = vt;
 
