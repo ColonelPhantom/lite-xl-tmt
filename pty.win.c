@@ -4,6 +4,9 @@
 
 #include <winpty/winpty.h>
 
+#include "minivt.h"
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define BUF_SIZE 2048
 
 // because the proper function isn't defined by microsoft duh
@@ -17,19 +20,61 @@ uintptr_t _beginthreadex( // NATIVE CODE
 );
 
 typedef struct {
+    winpty_t *pty;
     HANDLE read_side, write_side;
 } thread_t;
 
-__stdcall unsigned rw_thread(void *ptr) {
-    thread_t *th = (thread_t *) ptr;
+static void write_callback(int type, vt_answer_t *ans, void *p) {
+    uintptr_t *args = (uintptr_t *) p;
+    thread_t *th    = (thread_t *) args[0];
+    BOOL     *w     = (BOOL *)     args[1];
+    DWORD    *write = (DWORD *)    args[2];
+    switch (type) {
+    // TODO: don't ignore VT_MSG_CONTENT
+    case VT_MSG_PASS:
+        *w = WriteFile(th->write_side, ans->buffer.b, ans->buffer.len, write, NULL);
+        break;
+    case VT_MSG_RESIZE:
+        winpty_set_size(th->pty, ans->point.c, ans->point.r, NULL);
+        break;
+    }
+}
 
+static BOOL try_read(HANDLE h, LPVOID data, DWORD max_size, DWORD *r) {
+    DWORD read = 0;
+    PeekNamedPipe(h, NULL, 0, NULL, &read, NULL);
+    // if there's more data to read, we'll read that much to prevent block
+    // if there's 1 or no data, we read 1 so it blocks until data is available
+    read = read > 1 ? MIN(max_size, read) : 1;
+    return ReadFile(h, data, read, r, NULL);
+}
+
+__stdcall unsigned int stdin_thread(void *ptr) {
+    thread_t *th = (thread_t *) ptr;
     BYTE buf[BUF_SIZE];
     DWORD read = 0, write = 0;
-    BOOL r = FALSE, w = FALSE;
+    BOOL r, w;
+
+    intptr_t args[3] = { (intptr_t) ptr, (intptr_t) &w, (intptr_t) &write };
+    vt_parser_t *vt = vtnew(write_callback, args);
     do {
-        r = ReadFile(th->read_side, buf, BUF_SIZE, &read, NULL);
+        r = try_read(th->read_side, buf, BUF_SIZE, &read);
+        if (r && read > 0)
+            vtparse(vt, (const char *)buf, read);
+    } while (r && w);
+    vtfree(vt);
+    return 0;
+}
+
+__stdcall unsigned int stdout_thread(void *ptr) {
+    thread_t *th = (thread_t *) ptr;
+    BYTE buf[BUF_SIZE];
+    DWORD read = 0, write = 0;
+    BOOL r, w;
+    do {
+        r = try_read(th->read_side, buf, BUF_SIZE, &read);
         w = WriteFile(th->write_side, buf, read, &write, NULL);
-    } while (r && w && read >= 0 && write >= 0);
+    } while (r && w);
     return 0;
 }
 
@@ -77,6 +122,9 @@ int main() {
     HANDLE stdin_handle, stdout_handle, pty_in, pty_out;
     HANDLE threads[2];
 
+    stdin_handle = stdout_handle = pty_in = pty_out = INVALID_HANDLE_VALUE;
+    threads[0] = threads[1] = INVALID_HANDLE_VALUE;
+
     config = winpty_config_new(0, &err);
     if (config == NULL) {
         winpty_error(err);
@@ -99,6 +147,10 @@ int main() {
     stdin_handle = GetStdHandle(STD_INPUT_HANDLE);
     stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE);
 
+    DWORD cm = 0;
+    GetConsoleMode(stdin_handle, &cm);
+    SetConsoleMode(stdin_handle, cm & ~(ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT|ENABLE_PROCESSED_INPUT));
+
     pty_in = CreateFileW(pty_in_name, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     pty_out = CreateFileW(pty_out_name, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
 
@@ -107,19 +159,13 @@ int main() {
         goto cleanup;
     }
 
-    thread_t in_thread = {
-        stdin_handle,
-        pty_in
-    };
+    thread_t in_thread = { pty, stdin_handle, pty_in };
 
-    thread_t out_thread = {
-        pty_out,
-        stdout_handle
-    };
+    thread_t out_thread = { pty, pty_out, stdout_handle };
 
-    unsigned thread_id;
-    threads[0] = (HANDLE) _beginthreadex(NULL, 0, rw_thread, &in_thread, 0, &thread_id);
-    threads[1] = (HANDLE) _beginthreadex(NULL, 0, rw_thread, &out_thread, 0, &thread_id);
+    unsigned int thread_id;
+    threads[0] = (HANDLE) _beginthreadex(NULL, 0, stdin_thread, &in_thread, 0, &thread_id);
+    threads[1] = (HANDLE) _beginthreadex(NULL, 0, stdout_thread, &out_thread, 0, &thread_id);
 
     spawn_config = winpty_spawn_config_new(WINPTY_SPAWN_FLAG_MASK, argv[1], NULL, NULL, NULL, &err);
     if (spawn_config == NULL) {
