@@ -19,7 +19,8 @@ package.cpath = cpath
 config.plugins.tmt = {
     shell = os.getenv(PLATFORM == "Windows" and "COMSPEC" or "SHELL") or "/bin/sh",
     shell_args = {},
-    split_direction = "down"
+    split_direction = "down",
+    resize_interval = 0.3 -- in seconds
 }
 
 local ESC = "\x1b"
@@ -70,6 +71,8 @@ function TmtView:new()
     self.scroll_region_start = 1
     self.scroll_region_end = self.rows
 
+    self.term_target_size = { w = 80, h = 24 }
+
     self.alive = true
 
     core.add_thread(function()
@@ -106,8 +109,19 @@ function TmtView:update(...)
     local sw, sh = self:get_screen_char_size()
     local tw, th = self.tmt:get_size()
     if sw ~= tw or sh ~= th then
-        self.tmt:set_size(sw, sh)
+        self.term_target_size.w, self.term_target_size.h = sw, sh
+        if not self.resize_start then
+            self.resize_start = system.get_time()
+        end
     end
+
+    if self.resize_start
+        and (system.get_time() - self.resize_start > config.plugins.tmt.resize_interval) then
+        self.resize_start = nil
+        self.tmt:set_size(sw, sh)
+        self.proc:write(string.format("\x1bXP%d;%dR\x1b\\", sh, sw))
+    end
+
     -- update blink timer
     if self == core.active_view then
         local T, t0 = config.blink_period, core.blink_start
@@ -134,7 +148,7 @@ function TmtView:get_screen_char_size()
     local font = style.code_font
     local x = self.size.x - style.padding.x
     local y = self.size.y - style.padding.y
-    return math.max(1, math.floor(x / font:get_width("a"))),
+    return math.max(1, math.floor(x / font:get_width("A"))),
         math.max(1, math.floor(y / font:get_height()))
 end
 
@@ -149,7 +163,6 @@ function TmtView:draw()
     local fw, fh = font:get_width("A"), font:get_height()
 
     ox, oy = ox + style.padding.x, oy + style.padding.y
-
     for i = 1, screen.width * screen.height do
         local cy = math.floor((i - 1) / screen.width)
         local cx = (i - 1) % screen.width
