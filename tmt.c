@@ -55,7 +55,7 @@ struct TMT{
     TMTPOINT curs, oldcurs;
     TMTATTRS attrs, oldattrs;
 
-    bool dirty, acs, ignored;
+    bool dirty, acs, ignored, cignored;
     TMTSCREEN screen;
     TMTLINE *tabs;
 
@@ -258,16 +258,18 @@ handlechar(TMT *vt, char i)
     #define DO(S, C, A) ON(S, C, consumearg(vt); if (!vt->ignored) {A;} \
                                  fixcursor(vt); resetparser(vt););
 
-    DO(S_NUL, "\x07",       CB(vt, TMT_MSG_BELL, NULL))
+    DO(S_NUL, "\x07",       vt->cignored = false; CB(vt, TMT_MSG_BELL, NULL))
     DO(S_NUL, "\x08",       if (c->c) c->c--)
     DO(S_NUL, "\x09",       while (++c->c < s->ncol - 1 && t[c->c].c != L'*'))
     DO(S_NUL, "\x0a",       c->r < s->nline - 1? (void)c->r++ : scrup(vt, 0, 1))
     DO(S_NUL, "\x0d",       c->c = 0)
     ON(S_NUL, "\x1b",       vt->state = S_ESC)
     ON(S_ESC, "\x1b",       vt->state = S_ESC)
+    DO(S_ESC, "\\",         vt->cignored = false)
     DO(S_ESC, "H",          t[c->c].c = L'*')
     DO(S_ESC, "7",          vt->oldcurs = vt->curs; vt->oldattrs = vt->attrs)
     DO(S_ESC, "8",          vt->curs = vt->oldcurs; vt->attrs = vt->oldattrs)
+    ON(S_ESC, "]X^_",       vt->cignored = true)
     ON(S_ESC, "+*()",       vt->ignored = true; vt->state = S_ARG)
     DO(S_ESC, "c",          tmt_reset(vt))
     ON(S_ESC, "[",          vt->state = S_ARG)
@@ -306,7 +308,7 @@ handlechar(TMT *vt, char i)
     DO(S_ARG, "u",          vt->curs = vt->oldcurs; vt->attrs = vt->oldattrs)
     DO(S_ARG, "@",          ich(vt))
 
-    return resetparser(vt), false;
+    return resetparser(vt), vt->cignored;
 }
 
 static void
