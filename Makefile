@@ -17,8 +17,8 @@ all: $(SONAME) pty
 $(SONAME): lua_tmt.c tmt.c
 	$(CC) -shared -o $@ $(LUA_CFLAGS) $(LUA_LIBS) $^
 
-pty: $(PTY_SRC)
-	$(CC) -o $@ $(PTY_CFLAGS) $(PTY_LIBS) $<
+pty: $(PTY_SRC) minivt.c
+	$(CC) -o $@ $(PTY_CFLAGS) $(PTY_LIBS) $^
 
 mingw:
 	$(MAKE) PTY_LIBS=-lwinpty SOEXT=dll PTY_SRC=pty.win.c
