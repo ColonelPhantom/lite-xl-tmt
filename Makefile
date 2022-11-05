@@ -1,8 +1,8 @@
 CFLAGS += -std=gnu99 -O2 -fPIC -Wall -Wextra -Wpedantic
 
 # change these if you use a different Lua version
-LUA_CFLAGS = $(CFLAGS) -I/usr/include/lua5.2
-LUA_LIBS = -llua5.2
+LUA_CFLAGS = $(CFLAGS) -I/usr/include/lua5.4
+LUA_LIBS = -llua5.4
 
 PTY_CFLAGS = $(CFLAGS)
 PTY_LIBS = -lutil
