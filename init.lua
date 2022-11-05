@@ -184,7 +184,7 @@ function TmtView:draw()
     core.blink_timer = system.get_time()
     local T = config.blink_period
     if system.window_has_focus() then
-        if config.disable_blink
+        if config.disable_blink or core.active_view ~= self
             or (core.blink_timer - core.blink_start) % T < T / 2 then
             local cx, cy = self.tmt:get_cursor()
             local x, y = ox + (cx - 1) * fw, oy + (cy - 1) * fh
