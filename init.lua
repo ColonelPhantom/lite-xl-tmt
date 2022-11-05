@@ -226,9 +226,14 @@ function keymap.on_key_pressed(k, ...)
             ["tab"] = "\t",
             ["space"] = " ",
         }
+        local exceptions = {
+            ["`"] = true,
+        }
         if actions[k] then
             core.active_view:input_string(actions[k])
             return true
+        elseif keymap.modkeys["ctrl"] and exceptions[k] then
+            keymap_on_key_pressed(k, ...)
         elseif keymap.modkeys["ctrl"] then
             local char = string.byte(k) - string.byte('a') + 1
             core.active_view:input_string(string.char(char))
@@ -252,30 +257,38 @@ end
 -- this is a shared session used by tmt:view
 -- it is not touched by "tmt:open-here"
 local shared_view = nil
-local function shared_view_exists()
-    return shared_view and core.root_view.root_node:get_node_for_view(shared_view)
-end
+
 command.add(nil, {
     ["tmt:new"] = function()
         local node = core.root_view:get_active_node()
-        if not shared_view_exists() then
-            shared_view = TmtView()
-        end
-        node:split(config.plugins.tmt.split_direction, shared_view)
-        core.set_active_view(shared_view)
+        node:add_view(TmtView())
     end,
     ["tmt:toggle"] = function()
-        if not shared_view_exists() then
-            command.perform "tmt:new"
-        else
+        print("toggle")
+        if not shared_view then
+            -- create a terminal
+            local node = core.root_view:get_active_node()
+            if not shared_view then
+                shared_view = TmtView()
+            end
+            node:split(config.plugins.tmt.split_direction, shared_view)
+            core.set_active_view(shared_view)
+        elseif core.active_view == shared_view then
+            -- hide the terminal
+            print("hiding")
             shared_view.visible = not shared_view.visible
+            local node = core.root_view:get_active_node()
+            node:remove_view(core.root_view.root_node, shared_view)
+        else
+            -- show and focus the terminal
+            local node = core.root_view:get_active_node()
+            if not shared_view.visible then
+                shared_view.visible = true
+                node:split(config.plugins.tmt.split_direction, shared_view)
+            end
             core.set_active_view(shared_view)
         end
     end,
-    ["tmt:open-here"] = function()
-        local node = core.root_view:get_active_node()
-        node:add_view(TmtView())
-    end
 })
 
 keymap.add({
