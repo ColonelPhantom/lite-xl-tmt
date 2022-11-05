@@ -48,6 +48,8 @@ local COLORS = {
 local PASSTHROUGH_PATH = USERDIR .. "/plugins/tmt/pty"
 local TERMINATION_MSG = "\r\n\n[Process ended with status %d]"
 
+local shared_view = nil
+
 local TmtView = View:extend()
 
 function TmtView:new()
@@ -95,6 +97,7 @@ function TmtView:new()
 end
 
 function TmtView:try_close(...)
+    if self == shared_view then shared_view = nil end
     self.proc:kill()
     TmtView.super.try_close(self, ...)
 end
@@ -252,11 +255,6 @@ function keymap.on_key_released(k)
         keymap.modkeys[mk] = false
     end
 end
-
-
--- this is a shared session used by tmt:view
--- it is not touched by "tmt:open-here"
-local shared_view = nil
 
 command.add(nil, {
     ["tmt:new"] = function()
