@@ -2,15 +2,20 @@
 Terminal emulator for [Lite XL](https://github.com/lite-xl/lite-xl) based on [libtmt](https://github.com/deadpixi/libtmt) (more specifically [lua-tmt](https://github.com/max1220/lua-tmt)).
 
 ## Build instructions
-Place this repo in `~/.config/lite-xl/plugins`, and rename it to `tmt`. (The full path should look like `~/.config/lite-xl/plugins/tmt/init.lua`, for example.) Then run `make`.
+Place this repo in `~/.config/lite-xl/plugins`, and rename it to `tmt`. (The full path should look like `~/.config/lite-xl/plugins/tmt/init.lua`, for example.) Then run `make`, or `make mingw` if you are on Windows.
 
-You may need to ensure Lite is compiled against the system Lua installation, and perhaps adjust the Lua version that lua-tmt is linked against.
+Example:
+```sh
+cd ~/.config/lite-xl/plugins
+git clone https://github.com/ColonelPhantom/lite-xl-tmt tmt
+make # or "make mingw" if you use Windows
+```
 
 ## Caveats
-This plugin is only tested so far on the author's system. Note that Lite XL currently does not officially support native plugins at all.
+This plugin is not widely tested, use at your own risk.
 
-The plugin is only tested on GNU/Linux. Other UNIX-like systems might work. Windows almost certainly will not.
+The main author uses GNU/Linux, so Windows support is provided on a best-effort basis. (Should work, though.)
 
-Resizing the terminal does not work well, it is necessary to run `resize` inside the terminal after resizing in order to inform client software.
+TMT is a fairly limited terminal emulator, so some advanced terminal programs will not work correctly.
 
-There is no support for scrolling.
+There is no support for scrolling due to TMT limitations.

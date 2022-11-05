@@ -1,10 +1,5 @@
-CFLAGS += -std=gnu99 -O2 -fPIC -Wall -Wextra -Wpedantic
+CFLAGS += -std=gnu99 -O2 -fPIC
 
-# change these if you use a different Lua version
-LUA_CFLAGS = $(CFLAGS) -I/usr/include/lua5.4
-LUA_LIBS = -llua5.4
-
-PTY_CFLAGS = $(CFLAGS)
 PTY_LIBS = -lutil
 
 SOEXT = so
@@ -15,10 +10,10 @@ PTY_SRC = pty.c
 all: $(SONAME) pty
 
 $(SONAME): lua_tmt.c tmt.c
-	$(CC) -shared -o $@ $(LUA_CFLAGS) $(LUA_LIBS) $^
+	$(CC) -shared -o $@ $(CFLAGS) $^
 
 pty: $(PTY_SRC) minivt.c
-	$(CC) -o $@ $(PTY_CFLAGS) $(PTY_LIBS) $^
+	$(CC) -o $@ $(CFLAGS) $(PTY_LIBS) $^
 
 mingw:
 	$(MAKE) PTY_LIBS=-lwinpty SOEXT=dll PTY_SRC=pty.win.c

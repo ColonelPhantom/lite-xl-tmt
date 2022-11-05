@@ -1,8 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <locale.h>
-#include <lua.h>
-#include <lauxlib.h>
+
+#include "lite_xl_plugin_api.h"
 
 #ifdef __WIN32
 #include <windows.h>
@@ -224,7 +224,7 @@ static int l_new(lua_State *L) {
     int w = luaL_optinteger(L, 1, 80);
     int h = luaL_optinteger(L, 2, 24);
 
-    tmt_t *tmt = (tmt_t *)lua_newuserdata(L, sizeof(tmt_t));
+    tmt_t *tmt = (tmt_t *)lua_newuserdatauv(L, sizeof(tmt_t), 0);
     luaL_setmetatable(L, API_TYPE_TMT);
 
     TMT *vt = tmt_open((size_t)h, (size_t)w, input_callback, tmt, NULL); 
@@ -274,13 +274,14 @@ static const luaL_Reg lib[] = {
     { NULL, NULL }
 };
 
+int luaopen_lite_xl_tmt(lua_State *L, void *XL) {
+    lite_xl_plugin_init(XL);
 
-
-int luaopen_tmt(lua_State *L) {
     setlocale(LC_CTYPE, "en_US.UTF-8");
     luaL_newmetatable(L, API_TYPE_TMT);
     lua_pushvalue(L, -1);
     lua_setfield(L, -2, "__index");
     luaL_setfuncs(L, lib, 0);
+
     return 1;
 }
