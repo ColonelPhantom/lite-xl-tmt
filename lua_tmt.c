@@ -43,11 +43,9 @@ static int wchar_convert(wchar_t c, char *s) {
 #endif
 }
 
-
-
 static int l_write(lua_State *L) {
     tmt_t *tmt = luaL_checkudata(L, 1, API_TYPE_TMT);
-    const char* str = luaL_checkstring(L, 2);
+    const char* str = lua_tolstring(L, 2, NULL);
 
     const TMTPOINT *c = tmt_cursor(tmt->vt);
 
@@ -123,8 +121,8 @@ static int l_get_screen(lua_State *L) {
 
     // ensure enough objects for later
     unsigned int l = s->nline * s->ncol;
-    if (lua_rawlen(L, -1) < l) {
-        for (unsigned int i = lua_rawlen(L, -1) + 1; i <= l; i++) {
+    if (lua_objlen(L, -1) < l) {
+        for (unsigned int i = lua_objlen(L, -1) + 1; i <= l; i++) {
             lua_newtable(L);
             lua_rawseti(L, -2, i);
         }
@@ -222,10 +220,10 @@ void input_callback(tmt_msg_t m, TMT *vt, const void *a, void *p) {
 
 
 static int l_new(lua_State *L) {
-    int w = luaL_optinteger(L, 1, 80);
-    int h = luaL_optinteger(L, 2, 24);
+    int w = lua_tointeger(L, 1);
+    int h = lua_tointeger(L, 2);
 
-    tmt_t *tmt = (tmt_t *)lua_newuserdatauv(L, sizeof(tmt_t), 0);
+    tmt_t *tmt = (tmt_t *)lua_newuserdata(L, sizeof(tmt_t));
     luaL_setmetatable(L, API_TYPE_TMT);
 
     TMT *vt = tmt_open((size_t)h, (size_t)w, input_callback, tmt, NULL); 

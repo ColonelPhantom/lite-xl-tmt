@@ -309,6 +309,7 @@ SYMBOL_DECLARE(void,               lua_rawgetp,           lua_State *L, int idx,
 SYMBOL_DECLARE(void,               lua_createtable,       lua_State *L, int narr, int nrec)
 SYMBOL_DECLARE(void *,             lua_newuserdata,       lua_State *L, size_t sz)
 SYMBOL_DECLARE(void *,             lua_newuserdatauv,     lua_State *L, size_t sz, int nuvalue)
+SYMBOL_DECLARE(size_t,             lua_objlen,            lua_State *L, int idx)
 SYMBOL_DECLARE(int,                lua_getmetatable,      lua_State *L, int objindex)
 SYMBOL_DECLARE(void,               lua_getuservalue,      lua_State *L, int idx)
 SYMBOL_DECLARE(void,               lua_getiuservalue,     lua_State *L, int idx, int n)
@@ -684,12 +685,21 @@ SYMBOL_WRAP_DECL(void, lua_createtable, lua_State *L, int narr, int nrec){
   SYMBOL_WRAP_CALL(lua_createtable, L, narr, nrec);
 }
 SYMBOL_WRAP_DECL(void *, lua_newuserdata, lua_State *L, size_t sz){
-  if (__lua_newuserdatauv != NULL) {
+  printf("called newuserdata non-uv\n");
+  if (__lua_newuserdatauv != __lite_xl_fallback_lua_newuserdatauv) {
     return lua_newuserdatauv(L, sz, 1);
   } else if (__lua_newuserdata != NULL) {
     SYMBOL_WRAP_CALL(lua_newuserdata, L, sz);
   }
   SYMBOL_WRAP_CALL_FB(lua_newuserdata, L, sz);
+}
+SYMBOL_WRAP_DECL(size_t, lua_objlen, lua_State *L, int idx){
+  if (__lua_rawlen != __lite_xl_fallback_lua_rawlen) {
+    return lua_rawlen(L, idx);
+  } else {
+    SYMBOL_WRAP_CALL(lua_objlen, L, idx);
+  }
+  SYMBOL_WRAP_CALL_FB(lua_objlen, L, idx);
 }
 SYMBOL_WRAP_DECL(void *, lua_newuserdatauv, lua_State *L, size_t sz, int nuvalue){
   SYMBOL_WRAP_CALL(lua_newuserdatauv, L, sz, nuvalue);
@@ -1029,6 +1039,7 @@ static void lite_xl_plugin_init(void *XL) {
   IMPORT_SYMBOL(lua_createtable, void , lua_State *L, int narr, int nrec);
   IMPORT_SYMBOL_OPT(lua_newuserdata, void *, lua_State *L, size_t sz);
   IMPORT_SYMBOL(lua_newuserdatauv, void *, lua_State *L, size_t sz, int nuvalue);
+  IMPORT_SYMBOL(lua_objlen, size_t, lua_State *L, int idx);
   IMPORT_SYMBOL(lua_getmetatable, int , lua_State *L, int objindex);
   IMPORT_SYMBOL_OPT(lua_getuservalue, void , lua_State *L, int idx);
   IMPORT_SYMBOL(lua_getiuservalue, void , lua_State *L, int idx, int n);
