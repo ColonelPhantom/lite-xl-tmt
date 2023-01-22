@@ -11,4 +11,4 @@ jobs:
       - run: make
       - run: mkdir tmt && cp init.lua pty tmt.so tmt/
       - run: tar -czf lite-xl-tmt-$(git rev-parse --short HEAD)-linux.tar.gz tmt
-      - run: gh release delete -y nightly || true; gh release create -p -t "Nightly" nightly *.tar.gz
+      - run: gh release delete --cleanup-tag -y nightly || true; gh release create -p -t "Nightly" nightly *.tar.gz
