@@ -1,0 +1,14 @@
+name: CI
+on: { push: { branches: [main] } }
+jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    defaults: { run: {shell: bash } }
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v3
+      - run: make
+      - run: mkdir tmt && cp init.lua pty tmt.so tmt/
+      - run: tar -czf lite-xl-tmt-$(git rev-parse --short HEAD)-linux.tar.gz tmt
+      - run: gh release delete -y nightly || true; gh release create -p -t "Nightly" nightly *.tar.gz
