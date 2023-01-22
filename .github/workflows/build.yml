@@ -23,5 +23,9 @@ jobs:
                 export VERSION=`git tag --points-at HEAD`
                 mv lite-xl-tmt-$(git rev-parse --short HEAD)-win64.zip lite-xl-tmt-$VERSION-win64.zip
                 mv lite-xl-tmt-$(git rev-parse --short HEAD)-linux64.zip lite-xl-tmt-$VERSION-linux64.zip
+                echo "Creating release $VERSION"
                 gh release create --latest --generate-notes -t $VERSION $VERSION *.tar.gz *.zip
+            else
+                echo "Not creating a release; known tags:"
+                git tag
             fi
