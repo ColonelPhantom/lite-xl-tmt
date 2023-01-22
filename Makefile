@@ -13,12 +13,12 @@ $(SONAME): lua_tmt.c tmt.c
 	$(CC) -shared -o $@ $(CFLAGS) $^
 
 pty: $(PTY_SRC) minivt.c
-	$(CC) -o $@ $(CFLAGS) $(PTY_LIBS) $^
+	$(CC) -o $@ $(CFLAGS) $(PTY_LIBS) $^ -I. -L.
 
 mingw:
 	$(MAKE) PTY_LIBS=-lwinpty SOEXT=dll PTY_SRC=pty.win.c
 
 clean:
-	rm -f $(SONAME) pty pty.exe
+	rm -f tmt.so tmt.dll pty pty.exe
 
 .PHONY: clean mingw all
