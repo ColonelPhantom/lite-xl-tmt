@@ -1,6 +1,8 @@
 name: CI
 on: { push: { branches: [main] } }
 jobs:
+
+
   build_linux:
     runs-on: ubuntu-latest
     defaults: { run: {shell: bash } }
@@ -9,6 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: make
-      - run: mkdir tmt && cp init.lua pty tmt.so tmt/
-      - run: tar -czf lite-xl-tmt-$(git rev-parse --short HEAD)-linux.tar.gz tmt
-      - run: gh release delete --cleanup-tag -y nightly || true; gh release create -p -t "Nightly" nightly *.tar.gz
+      - run: mkdir tmt && cp init.lua pty tmt.so tmt/ && tar -czf lite-xl-tmt-$(git rev-parse --short HEAD)-linux64.tar.gz tmt && rm -r tmt
+      - run: make clean
+      - run: sudo apt-get install mingw-w64
+      - run: CC=x86_64-w64-mingw32-gcc make mingw
+      - run: mkdir tmt && cp init.lua pty.exe tmt.dll winpty.dll winpty-agent.exe tmt/ && zip -r lite-xl-tmt-$(git rev-parse --short HEAD)-win64.zip tmt && rm -r tmt
+      - run: make clean
+      - run: gh release delete --cleanup-tag -y nightly || true; gh release create -p -t "Nightly" nightly *.tar.gz *.zip
