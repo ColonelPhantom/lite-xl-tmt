@@ -10,6 +10,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v3
+        with: { fetch-depth: 0 }
       - run: make
       - run: mkdir tmt && cp init.lua pty tmt.so tmt/ && tar -czf lite-xl-tmt-$(git rev-parse --short HEAD)-linux64.tar.gz tmt && rm -r tmt
       - run: make clean
