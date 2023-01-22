@@ -18,3 +18,10 @@ jobs:
       - run: mkdir tmt && cp init.lua pty.exe tmt.dll winpty.dll winpty-agent.exe tmt/ && zip -r lite-xl-tmt-$(git rev-parse --short HEAD)-win64.zip tmt && rm -r tmt
       - run: make clean
       - run: gh release delete --cleanup-tag -y nightly || true; gh release create -p -t "Nightly" nightly *.tar.gz *.zip
+      - run: |
+            if [[ `git tag --points-at HEAD | head -c 1` == "v"]]; then
+                export VERSION=`git tag --points-at HEAD`
+                mv lite-xl-tmt-$(git rev-parse --short HEAD)-win64.zip lite-xl-tmt-$VERSION-win64.zip
+                mv lite-xl-tmt-$(git rev-parse --short HEAD)-linux64.zip lite-xl-tmt-$VERSION-linux64.zip
+                gh release create -t $VERSION $VERSION *.tar.gz *.zip
+            fi
