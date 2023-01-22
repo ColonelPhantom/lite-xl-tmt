@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <locale.h>
 
+#define LITE_XL_PLUGIN_ENTRYPOINT
 #include "lite_xl_plugin_api.h"
 
 #ifdef __WIN32
