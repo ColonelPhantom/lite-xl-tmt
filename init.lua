@@ -45,7 +45,16 @@ local COLORS = {
 
 }
 
-local PASSTHROUGH_PATH = USERDIR .. "/plugins/tmt/pty"
+local function get_passthrough_exe()
+  for _, dir in ipairs { USERDIR, DATADIR } do
+    local path = dir .. "/plugins/tmt/pty" .. (PLATFORM == "Windows" and ".exe" or "")
+    if system.get_file_info(path) then
+      return path
+    end
+  end
+end
+
+local PASSTHROUGH_PATH = get_passthrough_exe()
 local TERMINATION_MSG = "\r\n\n[Process ended with status %d]"
 
 local shared_view = nil
