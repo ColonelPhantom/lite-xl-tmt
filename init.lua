@@ -28,15 +28,6 @@ local COLORS = {
     { common.color "#75507b" },
     { common.color "#06989a" },
     { common.color "#d3d7cf" },
-    { common.color "#555753" },
-    { common.color "#ef2929" },
-    { common.color "#8ae234" },
-    { common.color "#fce94f" },
-    { common.color "#729fcf" },
-    { common.color "#ad7fa8" },
-    { common.color "#34e2e2" },
-    { common.color "#eeeeec" },
-
 }
 
 local function get_passthrough_exe()
@@ -178,7 +169,7 @@ function TmtView:draw()
         local x, y = ox + cx * fw, oy + cy * fh
         local cell = screen[i]
         local char = cell.char
-        if cell.bg ~= -1 then
+        if cell.bg > 0 then
             renderer.draw_rect(x, y, fw, fh, COLORS[cell.bg])
         end
 
