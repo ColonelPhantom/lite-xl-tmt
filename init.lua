@@ -7,13 +7,7 @@ local config = require "core.config"
 local style = require "core.style"
 local View = require "core.view"
 
--- Import TMT; override CPATH to include DATADIR and USERDIR
-local soname = PLATFORM == "Windows" and "?.dll" or "?.so"
-local cpath = package.cpath
-package.cpath = DATADIR .. '/plugins/tmt/' .. soname .. ';' .. package.cpath
-package.cpath = USERDIR .. '/plugins/tmt/' .. soname .. ';' .. package.cpath
-local libtmt = require "tmt"
-package.cpath = cpath
+local libtmt = require "plugins.tmt.tmt"
 
 
 config.plugins.tmt = {
