@@ -145,7 +145,9 @@ end
 
 function TmtView:input_string(str)
     if not self.alive then
-        return command.perform "root:close"
+        local node = core.root_view:get_active_node()
+        node:close_active_view(core.root_view.root_node)
+        return
     end
     self.proc:write(str)
 end
@@ -272,7 +274,7 @@ command.add(nil, {
             if not shared_view then
                 shared_view = TmtView()
             end
-            node:split(config.plugins.tmt.split_direction, shared_view)
+            node:split(config.plugins.tmt.split_direction, shared_view, {x = true, y = false}, true)
             core.set_active_view(shared_view)
         elseif core.active_view == shared_view then
             -- hide the terminal
@@ -285,7 +287,7 @@ command.add(nil, {
             local node = core.root_view:get_active_node()
             if not shared_view.visible then
                 shared_view.visible = true
-                node:split(config.plugins.tmt.split_direction, shared_view)
+                node:split(config.plugins.tmt.split_direction, shared_view, {x = true, y = false}, true)
             end
             core.set_active_view(shared_view)
         end
