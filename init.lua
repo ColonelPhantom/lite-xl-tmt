@@ -254,6 +254,11 @@ function keymap.on_key_released(k)
     end
 end
 
+local function tmt_split(node, view)
+    local dir = config.plugins.tmt.split_direction
+    node:split(dir, view, {}, true)
+end
+
 command.add(nil, {
     ["tmt:new"] = function()
         local node = core.root_view:get_active_node()
@@ -264,14 +269,11 @@ command.add(nil, {
         if not shared_view then
             -- create a terminal
             local node = core.root_view:get_active_node()
-            if not shared_view then
-                shared_view = TmtView()
-            end
-            node:split(config.plugins.tmt.split_direction, shared_view, {x = true, y = false}, true)
+            shared_view = TmtView()
+            tmt_split(node, shared_view)
             core.set_active_view(shared_view)
         elseif core.active_view == shared_view then
             -- hide the terminal
-            print("hiding")
             shared_view.visible = not shared_view.visible
             local node = core.root_view:get_active_node()
             node:remove_view(core.root_view.root_node, shared_view)
@@ -280,7 +282,7 @@ command.add(nil, {
             local node = core.root_view:get_active_node()
             if not shared_view.visible then
                 shared_view.visible = true
-                node:split(config.plugins.tmt.split_direction, shared_view, {x = true, y = false}, true)
+                tmt_split(node, shared_view)
             end
             core.set_active_view(shared_view)
         end
