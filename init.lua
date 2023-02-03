@@ -116,7 +116,9 @@ function TmtView:update(...)
         and (system.get_time() - self.resize_start > config.plugins.tmt.resize_interval) then
         self.resize_start = nil
         self.tmt:set_size(sw, sh)
-        pcall(self.proc.write, self, string.format("\x1bXP%d;%dR\x1b\\", sh, sw))
+        pcall(function()
+            self.proc:write(string.format("\x1bXP%d;%dR\x1b\\", sh, sw))
+        end)
     end
 
     -- update blink timer
