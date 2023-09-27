@@ -1,3 +1,6 @@
+# DEPRECATED
+Consider using [lite-xl-terminal](https://github.com/adamharrison/lite-xl-terminal) instead. This project kept only for archival purposes.
+
 # lite-xl-tmt
 Terminal emulator for [Lite XL](https://github.com/lite-xl/lite-xl) based on [libtmt](https://github.com/deadpixi/libtmt) (more specifically [lua-tmt](https://github.com/max1220/lua-tmt)).
 
